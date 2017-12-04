@@ -1,5 +1,5 @@
 [package]
-name = "math_util"
+name = "math-util"
 version = "0.1.0"
 authors = ["Woyten <woyten.tielesch@online.de>"]
 
