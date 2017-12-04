@@ -5,5 +5,8 @@ authors = ["Woyten <woyten.tielesch@online.de>"]
 
 [dependencies]
 lazy_static = "*"
+nalgebra = "*"
 num = "*"
+rayon = "*"
 rustfft = "*"
+thread_local = "*"
