@@ -1,11 +1,11 @@
-use matrix;
 use nalgebra::DMatrix;
+use nalgebra::Dynamic;
 use num::Complex;
 use num::Zero;
+use rayon::prelude::*;
 use rustfft::FFTplanner;
-use std::cell::RefCell;
+use std::borrow::BorrowMut;
 use std::sync::Mutex;
-use thread_local::CachedThreadLocal;
 
 lazy_static! {
     static ref FORWARD_PLANNER: Mutex<FFTplanner<f32>> = Mutex::new(FFTplanner::new(false));
@@ -27,36 +27,47 @@ impl TransformDirection {
     }
 }
 
-pub fn transform(input: &mut [Complex<f32>], direction: TransformDirection) {
-    let len = input.len();
-    transform_using_buffer(input, direction, &mut vec![Zero::zero(); len]);
+pub fn transform<I>(mut input: I, direction: TransformDirection) -> Vec<Complex<f32>>
+where
+    I: BorrowMut<[Complex<f32>]>,
+{
+    let input = input.borrow_mut();
+    let mut output_buffer = vec![Zero::zero(); input.len()];
+    transform_to(input, &mut output_buffer, direction);
+    output_buffer
 }
 
-pub fn transform_using_buffer(input: &mut [Complex<f32>], direction: TransformDirection, output_buffer: &mut Vec<Complex<f32>>) {
+pub fn transform_to(input: &mut [Complex<f32>], output_buffer: &mut [Complex<f32>], direction: TransformDirection) {
     direction
         .get_planner()
         .lock()
         .unwrap()
         .plan_fft(input.len())
         .process(input, output_buffer);
-
-    input.copy_from_slice(&output_buffer);
 }
 
-type CachedBuffer = CachedThreadLocal<RefCell<Vec<Complex<f32>>>>;
-
-pub fn transform_2d(input: &mut DMatrix<Complex<f32>>, direction: TransformDirection) {
-    transform_cols(input, direction);
-    let mut transposed = input.transpose();
-    transform_cols(&mut transposed, direction);
-    transposed.transpose_to(input);
+pub fn transform_2d<I>(mut input: I, direction: TransformDirection) -> DMatrix<Complex<f32>>
+where
+    I: BorrowMut<DMatrix<Complex<f32>>>,
+{
+    let input = input.borrow_mut();
+    let mut output_buffer = DMatrix::zeros_generic(Dynamic::new(input.nrows()), Dynamic::new(input.ncols()));
+    transform_2d_to(input, &mut output_buffer, direction);
+    output_buffer
 }
 
-fn transform_cols(input: &mut DMatrix<Complex<f32>>, direction: TransformDirection) {
+pub fn transform_2d_to(input: &mut DMatrix<Complex<f32>>, output_buffer: &mut DMatrix<Complex<f32>>, direction: TransformDirection) {
+    transform_cols(input, output_buffer, direction);
+    let mut transposed_buffer = DMatrix::zeros_generic(Dynamic::new(input.ncols()), Dynamic::new(input.nrows()));
+    transform_cols(&mut output_buffer.transpose(), &mut transposed_buffer, direction);
+    transposed_buffer.transpose_to(output_buffer);
+}
+
+fn transform_cols(input: &mut DMatrix<Complex<f32>>, output_buffer: &mut DMatrix<Complex<f32>>, direction: TransformDirection) {
     let nrows = input.nrows();
-    let output_buffer = CachedBuffer::new();
-    matrix::map_cols_in_place(input, |col| {
-        let output_buffer = output_buffer.get_or(|| Box::new(RefCell::new(vec![Zero::zero(); nrows])));
-        transform_using_buffer(col, direction, &mut output_buffer.borrow_mut());
-    });
+    input
+        .as_mut_slice()
+        .par_chunks_mut(nrows)
+        .zip(output_buffer.as_mut_slice().par_chunks_mut(nrows))
+        .for_each(|(input, output_buffer)| transform_to(input, output_buffer, direction))
 }

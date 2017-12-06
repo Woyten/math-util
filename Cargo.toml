@@ -9,4 +9,6 @@ nalgebra = "*"
 num = "*"
 rayon = "*"
 rustfft = "*"
-thread_local = "*"
+
+[dev-dependencies]
+rand = "*"
