@@ -1,5 +1,4 @@
 use nalgebra::DMatrix;
-use nalgebra::Dynamic;
 use num::Complex;
 use num::Zero;
 use rayon::prelude::*;
@@ -51,14 +50,14 @@ where
     I: BorrowMut<DMatrix<Complex<f32>>>,
 {
     let input = input.borrow_mut();
-    let mut output_buffer = DMatrix::zeros_generic(Dynamic::new(input.nrows()), Dynamic::new(input.ncols()));
+    let mut output_buffer = DMatrix::zeros(input.nrows(), input.ncols());
     transform_2d_to(input, &mut output_buffer, direction);
     output_buffer
 }
 
 pub fn transform_2d_to(input: &mut DMatrix<Complex<f32>>, output_buffer: &mut DMatrix<Complex<f32>>, direction: TransformDirection) {
     transform_cols(input, output_buffer, direction);
-    let mut transposed_buffer = DMatrix::zeros_generic(Dynamic::new(input.ncols()), Dynamic::new(input.nrows()));
+    let mut transposed_buffer = DMatrix::zeros(input.ncols(), input.nrows());
     transform_cols(&mut output_buffer.transpose(), &mut transposed_buffer, direction);
     transposed_buffer.transpose_to(output_buffer);
 }

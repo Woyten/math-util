@@ -5,7 +5,6 @@ extern crate num;
 use math_util::fft;
 use math_util::fft::TransformDirection;
 use nalgebra::DMatrix;
-use nalgebra::Dynamic;
 use num::Complex;
 
 #[test]
@@ -38,7 +37,7 @@ fn sanity_test_2d() {
         Complex::new(1.0, 0.0),
         Complex::new(0.0, -1.0),
     ];
-    let input = DMatrix::from_column_slice_generic(Dynamic::new(3), Dynamic::new(2), &components);
+    let input = DMatrix::from_column_slice(3, 2, &components);
 
     let transformed = fft::transform_2d(input, TransformDirection::Forward);
     let output = fft::transform_2d(transformed, TransformDirection::Backward);
@@ -51,7 +50,7 @@ fn sanity_test_2d() {
         Complex::new(6.0, 0.0),
         Complex::new(0.0, -6.0),
     ];
-    let expected_output = DMatrix::from_column_slice_generic(Dynamic::new(3), Dynamic::new(2), &components);
+    let expected_output = DMatrix::from_column_slice(3, 2, &components);
 
     assert_eq!(output, expected_output);
 }
