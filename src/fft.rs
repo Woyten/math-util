@@ -2,8 +2,10 @@ use nalgebra::DMatrix;
 use num::Complex;
 use num::Zero;
 use rayon::prelude::*;
+use rustfft::FFT;
 use rustfft::FFTplanner;
 use std::borrow::BorrowMut;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 lazy_static! {
@@ -18,10 +20,10 @@ pub enum TransformDirection {
 }
 
 impl TransformDirection {
-    fn get_planner(&self) -> &'static Mutex<FFTplanner<f32>> {
+    fn get_planner(&self) -> FFTplanner<f32> {
         match *self {
-            TransformDirection::Forward => &FORWARD_PLANNER,
-            TransformDirection::Backward => &BACKWARD_PLANNER,
+            TransformDirection::Forward => FFTplanner::new(false),
+            TransformDirection::Backward => FFTplanner::new(true),
         }
     }
 }
@@ -31,18 +33,14 @@ where
     I: BorrowMut<[Complex<f32>]>,
 {
     let input = input.borrow_mut();
-    let mut output_buffer = vec![Zero::zero(); input.len()];
-    transform_to(input, &mut output_buffer, direction);
+    let len = input.len();
+    let mut output_buffer = vec![Zero::zero(); len];
+    transform_to(input, &mut output_buffer, direction.get_planner().plan_fft(len));
     output_buffer
 }
 
-pub fn transform_to(input: &mut [Complex<f32>], output_buffer: &mut [Complex<f32>], direction: TransformDirection) {
-    direction
-        .get_planner()
-        .lock()
-        .unwrap()
-        .plan_fft(input.len())
-        .process(input, output_buffer);
+pub fn transform_to(input: &mut [Complex<f32>], output_buffer: &mut [Complex<f32>], planner: Arc<FFT<f32>>) {
+    planner.process(input, output_buffer);
 }
 
 pub fn transform_2d<I>(mut input: I, direction: TransformDirection) -> DMatrix<Complex<f32>>
@@ -64,9 +62,12 @@ pub fn transform_2d_to(input: &mut DMatrix<Complex<f32>>, output_buffer: &mut DM
 
 fn transform_cols(input: &mut DMatrix<Complex<f32>>, output_buffer: &mut DMatrix<Complex<f32>>, direction: TransformDirection) {
     let nrows = input.nrows();
+
+    let plan = direction.get_planner().plan_fft(nrows);
+
     input
         .as_mut_slice()
         .par_chunks_mut(nrows)
         .zip(output_buffer.as_mut_slice().par_chunks_mut(nrows))
-        .for_each(|(input, output_buffer)| transform_to(input, output_buffer, direction))
+        .for_each(|(input, output_buffer)| transform_to(input, output_buffer, plan.clone()))
 }
