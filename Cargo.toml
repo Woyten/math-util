@@ -2,13 +2,13 @@
 name = "math-util"
 version = "0.1.0"
 authors = ["Woyten <woyten.tielesch@online.de>"]
+edition = "2018"
 
 [dependencies]
-lazy_static = "*"
-nalgebra = "*"
-num = "*"
-rayon = "*"
-rustfft = "*"
+lazy_static = "1.1.0"
+nalgebra = "0.16.8"
+rayon = "1.0.3"
+rustfft = "2.1.0"
 
 [dev-dependencies]
 rand = "*"

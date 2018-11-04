@@ -1,11 +1,7 @@
-extern crate math_util;
-extern crate nalgebra;
-extern crate num;
-
 use math_util::fft;
 use math_util::fft::TransformDirection;
 use nalgebra::DMatrix;
-use num::Complex;
+use rustfft::num_complex::Complex;
 
 #[test]
 fn sanity_test() {

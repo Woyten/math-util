@@ -1,7 +1,8 @@
+use lazy_static::lazy_static;
 use nalgebra::DMatrix;
-use num::Complex;
-use num::Zero;
 use rayon::prelude::*;
+use rustfft::num_complex::Complex;
+use rustfft::num_traits::Zero;
 use rustfft::FFTplanner;
 use std::borrow::BorrowMut;
 use std::sync::Mutex;
@@ -18,8 +19,8 @@ pub enum TransformDirection {
 }
 
 impl TransformDirection {
-    fn get_planner(&self) -> &'static Mutex<FFTplanner<f32>> {
-        match *self {
+    fn get_planner(self) -> &'static Mutex<FFTplanner<f32>> {
+        match self {
             TransformDirection::Forward => &FORWARD_PLANNER,
             TransformDirection::Backward => &BACKWARD_PLANNER,
         }
@@ -36,7 +37,11 @@ where
     output_buffer
 }
 
-pub fn transform_to(input: &mut [Complex<f32>], output_buffer: &mut [Complex<f32>], direction: TransformDirection) {
+pub fn transform_to(
+    input: &mut [Complex<f32>],
+    output_buffer: &mut [Complex<f32>],
+    direction: TransformDirection,
+) {
     direction
         .get_planner()
         .lock()
@@ -55,14 +60,26 @@ where
     output_buffer
 }
 
-pub fn transform_2d_to(input: &mut DMatrix<Complex<f32>>, output_buffer: &mut DMatrix<Complex<f32>>, direction: TransformDirection) {
+pub fn transform_2d_to(
+    input: &mut DMatrix<Complex<f32>>,
+    output_buffer: &mut DMatrix<Complex<f32>>,
+    direction: TransformDirection,
+) {
     transform_cols(input, output_buffer, direction);
     let mut transposed_buffer = DMatrix::zeros(input.ncols(), input.nrows());
-    transform_cols(&mut output_buffer.transpose(), &mut transposed_buffer, direction);
+    transform_cols(
+        &mut output_buffer.transpose(),
+        &mut transposed_buffer,
+        direction,
+    );
     transposed_buffer.transpose_to(output_buffer);
 }
 
-fn transform_cols(input: &mut DMatrix<Complex<f32>>, output_buffer: &mut DMatrix<Complex<f32>>, direction: TransformDirection) {
+fn transform_cols(
+    input: &mut DMatrix<Complex<f32>>,
+    output_buffer: &mut DMatrix<Complex<f32>>,
+    direction: TransformDirection,
+) {
     let nrows = input.nrows();
     input
         .as_mut_slice()
